@@ -18,8 +18,11 @@ if (isset($_SESSION['cart'])) {
 <body>
     <header class="header" role="banner">
         <div class="logo">🛍️ FakeStore</div>
-        <div class="cart" aria-label="Shopping cart">
-            🛒 Cart <span id="cartCount" aria-label="Items in cart"><?= (int)$cartCount ?></span>
+        <div style="display:flex;gap:12px;align-items:center">
+            <a href="admin_orders.php" style="color:inherit;text-decoration:none;font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);transition:all 0.2s" onclick="this.style.background='var(--accent)';this.style.color='white'">📋 Orders</a>
+            <a class="cart" href="cart.php" aria-label="Shopping cart">
+                🛒 Cart <span id="cartCount" aria-label="Items in cart"><?= (int)$cartCount ?></span>
+            </a>
         </div>
     </header>
 
@@ -190,7 +193,11 @@ if (isset($_SESSION['cart'])) {
                             <span class="price" aria-label="Price">₹${parseFloat(product.price).toFixed(2)}</span>
                             <span class="rating" aria-label="Rating ${product.rating.rate} out of 5">⭐ ${product.rating.rate}</span>
                         </div>
-                        <button class="add-btn" data-id="${product.id}" data-title="${escapeHtml(product.title)}" aria-label="Add ${escapeHtml(product.title)} to cart">Add to Cart</button>
+                        <div style="font-size:11px;color:var(--success);margin:8px 0;font-weight:600">✓ In Stock</div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input class="qty-input" type="number" min="1" max="10" value="1" data-id="${product.id}" style="width:56px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;font-weight:600;font-size:13px">
+                            <button class="add-btn" data-id="${product.id}" data-title="${escapeHtml(product.title)}" aria-label="Add ${escapeHtml(product.title)} to cart">Add</button>
+                        </div>
                     </div>
                 </article>
             `).join('');
@@ -234,6 +241,10 @@ if (isset($_SESSION['cart'])) {
             const productId = btn.getAttribute('data-id');
             const productTitle = btn.getAttribute('data-title');
             const originalText = btn.textContent;
+            
+            // Get quantity from nearby input
+            const qtyInput = btn.closest('.card-content').querySelector('.qty-input');
+            const qty = qtyInput ? Math.max(1, parseInt(qtyInput.value) || 1) : 1;
 
             btn.disabled = true;
             btn.textContent = '⏳ Adding...';
@@ -241,7 +252,7 @@ if (isset($_SESSION['cart'])) {
             try {
                 const formData = new FormData();
                 formData.append('id', productId);
-                formData.append('qty', 1);
+                formData.append('qty', qty);
 
                 const response = await fetch('add_to_cart.php', {
                     method: 'POST',
@@ -256,6 +267,12 @@ if (isset($_SESSION['cart'])) {
                     DOM.cartCount.textContent = data.count;
                     btn.textContent = '✓ Added!';
                     btn.classList.add('success');
+                    
+                    // show toast
+                    showToast(`Added ${qty} item${qty > 1 ? 's' : ''} to cart`);
+                    
+                    // Reset quantity input
+                    if (qtyInput) qtyInput.value = 1;
                     
                     setTimeout(() => {
                         btn.textContent = originalText;
@@ -399,6 +416,20 @@ if (isset($_SESSION['cart'])) {
 
         function showError(message) {
             DOM.productsContainer.innerHTML = `<div class="error"><span>⚠️</span> ${escapeHtml(message)}</div>`;
+        }
+
+        // Toast helper
+        function showToast(msg){
+            let t = document.getElementById('toast');
+            if (!t) {
+                t = document.createElement('div'); t.id = 'toast'; t.setAttribute('aria-live','polite');
+                t.style.position = 'fixed'; t.style.right = '18px'; t.style.bottom = '18px'; t.style.zIndex = 9999;
+                document.body.appendChild(t);
+            }
+            const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+            t.appendChild(el);
+            setTimeout(()=> el.classList.add('visible'), 10);
+            setTimeout(()=> { el.classList.remove('visible'); setTimeout(()=> el.remove(),300); }, 3000);
         }
     </script>
 </body>
